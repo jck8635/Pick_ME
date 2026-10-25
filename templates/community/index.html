@@ -1,0 +1,337 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="community-page" data-updates-url="{{ url_for('community.updates') }}" data-last-update="{{ latest_update }}">
+  <div class="community-heading">
+    <div>
+      <p class="eyebrow">집단 지성 & 고민 나눔 광장</p>
+      <h1>이용자 투표 커뮤니티</h1>
+      <p>다른 이용자의 투표와 관점을 확인하고 함께 결정해보세요.</p>
+    </div>
+    <button type="button" onclick="document.getElementById('new-post').showModal()">＋ 고민 투표 올리기</button>
+  </div>
+
+  <!-- 검색 및 카테고리 필터 -->
+  <form class="community-filter" method="get" action="{{ url_for('community.index') }}">
+    <input type="search" name="q" value="{{ query }}" placeholder="제목, 내용, 선택지 검색">
+    <select name="category">
+      <option value="전체">전체 카테고리</option>
+      {% for category in categories %}
+      <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">검색</button>
+  </form>
+
+  <div class="community-layout">
+    <div class="community-feed-column">
+
+      {% if not posts %}
+      <div class="community-empty">조건에 맞는 고민이 없습니다. 첫 번째 투표를 올려보세요!</div>
+      {% endif %}
+
+      {% if featured_post_id %}
+      <p class="featured-note">{{ selected_category }} 인기 고민을 먼저 보여드리고, 나머지는 최신순으로 정렬했습니다.</p>
+      {% endif %}
+
+      <!-- 게시물 목록 -->
+      <div class="community-feed">
+        {% for post in posts %}
+        {% set total = post.votes|length %}
+
+        <article class="community-card" id="post-{{ post.id }}">
+
+          <!-- 게시물 정보 및 작성 날짜 -->
+          <div class="post-meta">
+            {% if post.id == featured_post_id %}
+            <span class="featured-pill">인기 글</span>
+            {% endif %}
+
+            <span class="category-pill">{{ post.category }}</span>
+            <span>작성자 {{ post.author.nickname }}</span>
+            <time>{{ post.created_at.strftime('%Y-%m-%d') }}</time>
+
+            {% if post.ai_recommendation %}
+            <span class="ai-pill">AI 추천: {{ post.ai_recommendation }}</span>
+            {% endif %}
+          </div>
+
+          <!-- 본인 게시물 수정 및 삭제 (오른쪽 정렬, font-size: 0.8em으로 축소) -->
+          {% if current_user and current_user.id|int == post.user_id|int %}
+          <div class="post-owner-actions" style="display: flex; justify-content: flex-end; gap: 6px; align-items: center; margin-top: 4px; margin-bottom: 4px; font-size: 0.8em;">
+
+              <!-- 게시물 수정 -->
+              <details class="inline-edit">
+                  <summary class="text-button" style="cursor: pointer; font-size: inherit;">수정</summary>
+
+                  <form method="post"
+                        action="{{ url_for('community.update_post', post_id=post.id) }}"
+                        class="owner-edit-form"
+                        style="margin-top: 8px; font-size: 1rem;">
+
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+                      <label>
+                          카테고리
+                          <select name="category" required>
+                              {% for category in categories %}
+                              <option value="{{ category }}" {% if post.category == category %}selected{% endif %}>
+                                  {{ category }}
+                              </option>
+                              {% endfor %}
+                          </select>
+                      </label>
+
+                      <label>
+                          제목
+                          <input type="text" name="title" maxlength="200" value="{{ post.title }}" required>
+                      </label>
+
+                      <label>
+                          내용
+                          <textarea name="content" maxlength="5000" rows="3" required>{{ post.content }}</textarea>
+                      </label>
+
+                      <button type="submit">수정 저장</button>
+                  </form>
+              </details>
+
+              <span style="color: #ccc; font-size: 10px;">|</span>
+
+              <!-- 게시물 삭제 -->
+              <form method="post"
+                    action="{{ url_for('community.remove_post', post_id=post.id) }}"
+                    onsubmit="return confirm('게시글과 투표, 공감, 댓글이 모두 삭제됩니다. 삭제할까요?');"
+                    style="display: inline; margin: 0;">
+
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="text-button danger-button" style="font-size: inherit;">삭제</button>
+              </form>
+
+          </div>
+          {% endif %}
+
+          <!-- 게시물 제목 및 내용 -->
+          <h2>{{ post.title }}</h2>
+          <p class="post-content">{{ post.content }}</p>
+
+          <!-- 투표 제목 -->
+          <div class="vote-heading">
+            <strong>선택지를 클릭해 투표하세요</strong>
+            <span>총 {{ total }}명 참여</span>
+          </div>
+
+          <!-- 투표 선택지 -->
+          <div class="option-list">
+            {% for option in post.options %}
+            {% set count = vote_counts.get(option.id, 0) %}
+            {% set percent = ((count * 100 / total)|round|int) if total else 0 %}
+
+            <form method="post"
+                  action="{{ url_for('community.vote', post_id=post.id, option_id=option.id) }}"
+                  class="option-form">
+
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+              <button class="vote-option {% if voted.get(post.id) == option.id %}is-voted{% endif %}"
+                      type="submit">
+
+                <span class="vote-bar" style="width:{{ percent }}%"></span>
+
+                <span class="option-name">
+                  {{ option.name }}
+                  {% if voted.get(post.id) == option.id %}✓{% endif %}
+                </span>
+
+                <span class="vote-count">{{ count }}표 · {{ percent }}%</span>
+              </button>
+            </form>
+            {% endfor %}
+          </div>
+
+          <!-- 투표 취소 -->
+          {% if current_user and voted.get(post.id) %}
+          <form class="cancel-vote-form"
+                method="post"
+                action="{{ url_for('community.cancel_post_vote', post_id=post.id) }}">
+
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="text-button">투표 취소</button>
+          </form>
+          {% endif %}
+
+          <!-- 공감 및 댓글 수 -->
+          <div class="post-actions">
+            <form method="post" action="{{ url_for('community.like', post_id=post.id) }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+              <button class="text-button {% if post.id in liked %}liked{% endif %}" type="submit">
+                ♥ 공감 {{ post.likes|length }}
+              </button>
+            </form>
+
+            <span>댓글 및 조언 {{ post.comments|length }}개</span>
+          </div>
+
+          <!-- 댓글 목록 -->
+          <section class="comment-list">
+
+            {% for comment in post.comments %}
+            <div class="comment">
+
+              <!-- 댓글 작성자 및 작성 날짜 -->
+              <div class="comment-meta">
+                <strong>{{ comment.author.nickname }}</strong>
+                <time>{{ comment.created_at.strftime('%m-%d %H:%M') }}</time>
+              </div>
+
+              <!-- 본인 댓글 수정 및 삭제 (오른쪽 정렬, font-size: 0.8em으로 축소) -->
+              {% if current_user and current_user.id|int == comment.user_id|int %}
+              <div class="comment-owner-actions" style="display: flex; justify-content: flex-end; gap: 6px; align-items: center; margin-top: 2px; margin-bottom: 2px; font-size: 0.8em;">
+
+                  <!-- 댓글 수정 -->
+                  <details class="inline-edit comment-owner-edit">
+                      <summary class="text-button" style="cursor: pointer; font-size: inherit;">수정</summary>
+
+                      <form method="post"
+                            action="{{ url_for('community.update_comment', post_id=post.id, comment_id=comment.id) }}"
+                            class="owner-edit-form"
+                            style="margin-top: 6px; font-size: 1rem;">
+
+                          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                          <textarea name="content" maxlength="2000" rows="2" required>{{ comment.content }}</textarea>
+                          <button type="submit">댓글 수정 저장</button>
+                      </form>
+                  </details>
+
+                  <span style="color: #ccc; font-size: 10px;">|</span>
+
+                  <!-- 댓글 삭제 -->
+                  <form method="post"
+                        action="{{ url_for('community.remove_comment', post_id=post.id, comment_id=comment.id) }}"
+                        onsubmit="return confirm('이 댓글을 삭제할까요?');"
+                        style="display: inline; margin: 0;">
+
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="text-button danger-button" style="font-size: inherit;">삭제</button>
+                  </form>
+
+              </div>
+              {% endif %}
+
+              <!-- 댓글 내용은 모든 사용자에게 표시 -->
+              <p class="comment-content">{{ comment.content }}</p>
+
+            </div>
+            {% endfor %}
+
+            <!-- 댓글 작성 폼 -->
+            {% if current_user %}
+            <form class="comment-form"
+                  method="post"
+                  action="{{ url_for('community.comment', post_id=post.id) }}">
+
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+              <input name="content"
+                     maxlength="2000"
+                     required
+                     placeholder="경험이나 조언을 댓글로 나눠주세요">
+
+              <button type="submit">등록</button>
+            </form>
+
+            {% else %}
+            <p class="login-hint">
+              <a href="{{ url_for('member.login') }}">로그인</a>하면 댓글을 남길 수 있습니다.
+            </p>
+            {% endif %}
+
+          </section>
+
+        </article>
+        {% endfor %}
+      </div>
+
+    </div>
+
+    <!-- 인기 게시물 사이드바 -->
+    <aside class="community-sidebar" aria-label="인기 게시물">
+
+      <section class="popular-panel">
+        <h2>공감 많은 고민</h2>
+
+        <ol>
+          {% for post in top_liked_posts %}
+          <li>
+            <a href="{{ url_for('community.index', _anchor='post-' ~ post.id) }}">{{ post.title }}</a>
+            <span>{{ post.likes|length }} 공감</span>
+          </li>
+          {% else %}
+          <li class="popular-empty">아직 게시물이 없습니다.</li>
+          {% endfor %}
+        </ol>
+      </section>
+
+      <section class="popular-panel">
+        <h2>댓글 많은 고민</h2>
+
+        <ol>
+          {% for post in top_commented_posts %}
+          <li>
+            <a href="{{ url_for('community.index', _anchor='post-' ~ post.id) }}">{{ post.title }}</a>
+            <span>{{ post.comments|length }} 댓글</span>
+          </li>
+          {% else %}
+          <li class="popular-empty">아직 게시물이 없습니다.</li>
+          {% endfor %}
+        </ol>
+      </section>
+
+    </aside>
+  </div>
+</section>
+
+<!-- 새 게시물 작성 창 -->
+<dialog id="new-post" class="post-dialog">
+  <form method="post" action="{{ url_for('community.create') }}">
+
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+    <h2>새로운 고민 투표 등록</h2>
+
+    <label>
+      카테고리
+      <select name="category" required>
+        {% for category in categories %}
+        <option value="{{ category }}">{{ category }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      제목
+      <input name="title" maxlength="200" required placeholder="고민을 한 줄로 표현해보세요">
+    </label>
+
+    <label>
+      고민 내용
+      <textarea name="content" maxlength="5000" rows="4" required placeholder="상황과 배경을 적어주세요"></textarea>
+    </label>
+
+    <label>선택지 (최소 2개, 최대 5개)</label>
+    <input name="options" maxlength="120" required placeholder="선택지 1">
+    <input name="options" maxlength="120" required placeholder="선택지 2">
+    <input name="options" maxlength="120" placeholder="선택지 3 (선택)">
+    <input name="options" maxlength="120" placeholder="선택지 4 (선택)">
+    <input name="options" maxlength="120" placeholder="선택지 5 (선택)">
+
+    <div class="dialog-actions">
+      <button type="button" class="secondary" onclick="document.getElementById('new-post').close()">취소</button>
+      <button type="submit">투표 올리기</button>
+    </div>
+
+  </form>
+</dialog>
+
+<script src="{{ url_for('static', filename='js/community.js') }}" defer></script>
+{% endblock %}

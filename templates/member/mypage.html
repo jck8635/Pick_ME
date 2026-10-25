@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/member.css') }}">
+<div class="pm-page pm-mypage">
+  <div class="pm-section-heading"><div><p class="pm-eyebrow">MY PICKME</p><h1>마이페이지</h1></div><a class="pm-text-link" href="{{ url_for('main.index') }}">홈으로 →</a></div>
+  <section class="pm-profile" aria-labelledby="profile-title">
+    <div class="pm-avatar" aria-hidden="true">{{ current_user.nickname[:1] }}</div>
+    <div class="pm-profile-info"><h2 id="profile-title">{{ current_user.nickname }}님, 반가워요.</h2><p>{{ current_user.email }}</p></div>
+    <a class="pm-button pm-button-secondary" href="{{ url_for('history.index') }}">내 고민 기록 보기 <span aria-hidden="true">↗</span></a>
+  </section>
+  <div class="pm-settings-grid">
+    <section class="pm-card" aria-labelledby="nickname-title">
+      <span class="pm-step">01 / PROFILE</span><h2 id="nickname-title">내 정보</h2><p class="pm-muted">PickMe AI에서 사용할 이름을 정해주세요.</p>
+      <dl class="pm-account-info"><dt>이메일</dt><dd>{{ current_user.email }}</dd><dt>현재 닉네임</dt><dd>{{ current_user.nickname }}</dd></dl>
+      <form method="post" action="{{ url_for('member.mypage') }}" class="pm-form" novalidate>
+        <input type="hidden" name="action" value="nickname">
+        <label for="nickname">변경할 닉네임</label>
+        <input id="nickname" name="nickname" autocomplete="nickname" maxlength="80" value="{{ request.form.get('nickname', current_user.nickname) if request.form.get('action') == 'nickname' else current_user.nickname }}" aria-describedby="nickname-help" required>
+        <p id="nickname-help" class="pm-field-help">중복되지 않는 닉네임 · 최대 80자</p>
+        <button class="pm-button" type="submit">닉네임 저장</button>
+      </form>
+    </section>
+    <section class="pm-card" aria-labelledby="password-title">
+      <span class="pm-step">02 / SECURITY</span><h2 id="password-title">비밀번호 변경</h2><p class="pm-muted">현재 비밀번호를 확인한 후 변경할 수 있어요.</p>
+      <form method="post" action="{{ url_for('member.mypage') }}" class="pm-form" novalidate>
+        <input type="hidden" name="action" value="password">
+        <label for="current-password">현재 비밀번호</label>
+        <input id="current-password" name="current_password" type="password" autocomplete="current-password" maxlength="1024" required>
+        <label for="new-password">새 비밀번호</label>
+        <input id="new-password" name="new_password" type="password" autocomplete="new-password" minlength="8" maxlength="1024" aria-describedby="password-help" required>
+        <p id="password-help" class="pm-field-help">현재와 다른 비밀번호 · 공백만 사용하지 않고 8자 이상</p>
+        <label for="password-confirmation">새 비밀번호 확인</label>
+        <input id="password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="1024" required>
+        <button class="pm-button" type="submit">비밀번호 변경</button>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

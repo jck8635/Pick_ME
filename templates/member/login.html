@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/member.css') }}">
+<div class="pm-page pm-auth-layout">
+  <aside class="pm-auth-intro">
+    <a class="pm-wordmark" href="{{ url_for('main.index') }}">PickMe AI<span class="pm-brand-dot" aria-hidden="true"></span></a>
+    <p class="pm-eyebrow">WELCOME BACK</p>
+    <h2>다시 만나 반가워요.<br>오늘의 고민도 함께해요.</h2>
+    <p>복잡한 생각을 차근차근 정리하고,<br>나에게 맞는 선택에 한 걸음 더 가까이.</p>
+    <a class="pm-text-link" href="{{ url_for('main.index') }}">← 홈으로 돌아가기</a>
+  </aside>
+  <section class="pm-card pm-auth-card" aria-labelledby="login-title">
+    <p class="pm-eyebrow">MY PICKME</p><h1 id="login-title">로그인</h1>
+    <p class="pm-muted">나만의 고민과 선택을 이어가세요.</p>
+    <form method="post" action="{{ url_for('member.login') }}" class="pm-form" novalidate>
+      <label for="email">이메일</label>
+      <input id="email" name="email" type="email" autocomplete="username" maxlength="255" placeholder="you@example.com" value="{{ request.form.get('email', '') }}" required>
+      <label for="password">비밀번호</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" placeholder="비밀번호를 입력해주세요" required>
+      <button class="pm-button pm-button-full" type="submit">로그인 <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="pm-form-footer">아직 계정이 없으신가요? <a href="{{ url_for('member.signup') }}">회원가입</a></p>
+  </section>
+</div>
+{% endblock %}

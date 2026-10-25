@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/decision.css') }}">
+
+<div class="container mt-4">
+    <h2>2. 비교할 선택지 작성 (2/5)</h2>
+    <p class="text-muted">최소 2개에서 최대 5개까지의 대안을 입력하세요.</p>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+
+    <form method="POST" action="{{ url_for('decision.new_submit') }}" class="panel" id="options-form">
+        <div id="option-list">
+            {% for opt in options %}
+            <div class="option-card">
+                <span class="badge">선택지 {{ loop.index }}</span>
+                <div class="row">
+                    <div>
+                        <label>선택지 이름 *</label>
+                        <input type="text" name="option_title" value="{{ opt.title }}" placeholder="예: 짬뽕">
+                    </div>
+                    <div>
+                        <label>간단한 설명 및 특징 (선택)</label>
+                        <input type="text" name="option_note" value="{{ opt.note }}"
+                            placeholder="예: 입맛은 얼큰한 국물, 맵기 조절 가능 / 점심 짬뽕은 순한">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if options|length < 2 %}
+            <div class="option-card">
+                <span class="badge">선택지 1</span>
+                <div class="row">
+                    <div>
+                        <label>선택지 이름 *</label>
+                        <input type="text" name="option_title" placeholder="예: 짬뽕">
+                    </div>
+                    <div>
+                        <label>간단한 설명 및 특징 (선택)</label>
+                        <input type="text" name="option_note"
+                            placeholder="예: 입맛은 얼큰한 국물, 맵기 조절 가능 / 점심 짬뽕은 순한">
+                    </div>
+                </div>
+            </div>
+            <div class="option-card">
+                <span class="badge">선택지 2</span>
+                <div class="row">
+                    <div>
+                        <label>선택지 이름 *</label>
+                        <input type="text" name="option_title" placeholder="예: 짜장면">
+                    </div>
+                    <div>
+                        <label>간단한 설명 및 특징 (선택)</label>
+                        <input type="text" name="option_note"
+                            placeholder="예: 짜장만은 술픈에 맛을 수 있지만 더 먹을 때 찌글기착 왁 고미이에요">
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <button type="button" class="btn-restyle" id="add-option">+ 선택지 추가</button>
+        <button type="submit" class="btn btn-primary">다음 단계로 (3/5)</button>
+    </form>
+</div>
+
+<script>
+// "+ 선택지 추가" → 최대 5개까지만 늘리기
+let count = document.querySelectorAll('.option-card').length;
+document.getElementById('add-option').addEventListener('click', () => {
+    if (count >= 5) { alert('최대 5개까지 가능해요.'); return; }
+    count++;
+    const card = document.querySelector('.option-card').cloneNode(true);
+    card.querySelector('.badge').textContent = '선택지 ' + count;
+    card.querySelectorAll('input').forEach(i => i.value = '');
+    document.getElementById('option-list').appendChild(card);
+});
+</script>
+{% endblock %}

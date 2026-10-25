@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/member.css') }}">
+<div class="pm-page pm-auth-layout">
+  <aside class="pm-auth-intro">
+    <a class="pm-wordmark" href="{{ url_for('main.index') }}">PickMe AI<span class="pm-brand-dot" aria-hidden="true"></span></a>
+    <p class="pm-eyebrow">YOUR NEXT CHAPTER</p>
+    <h2>나를 위한 선택,<br>여기서 시작해요.</h2>
+    <p>AI와 생각을 정리하고, 선택지를 비교하고,<br>다양한 사람들의 관점을 만나보세요.</p>
+    <div class="pm-intro-chips"><span>AI 상담</span><span>결정 도우미</span><span>고민 기록</span><span>커뮤니티</span></div>
+    <a class="pm-text-link" href="{{ url_for('main.index') }}">← 홈으로 돌아가기</a>
+  </aside>
+  <section class="pm-card pm-auth-card" aria-labelledby="signup-title">
+    <p class="pm-eyebrow">JOIN PICKME</p><h1 id="signup-title">회원가입</h1>
+    <p class="pm-muted">세 가지 정보로 나만의 공간을 만들어보세요.</p>
+    <form method="post" action="{{ url_for('member.signup') }}" class="pm-form" novalidate>
+      <label for="email">이메일</label>
+      <input id="email" name="email" type="email" autocomplete="username" maxlength="255" placeholder="you@example.com" value="{{ request.form.get('email', '') }}" required>
+      <label for="nickname">닉네임</label>
+      <input id="nickname" name="nickname" autocomplete="nickname" maxlength="80" placeholder="어떻게 불러드릴까요?" value="{{ request.form.get('nickname', '') }}" aria-describedby="nickname-help" required>
+      <p id="nickname-help" class="pm-field-help">다른 회원과 겹치지 않는 닉네임 · 최대 80자</p>
+      <label for="password">비밀번호</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="1024" placeholder="8자 이상 입력해주세요" aria-describedby="password-help" required>
+      <p id="password-help" class="pm-field-help">공백만 사용하지 않고 8자 이상 입력해주세요.</p>
+      <button class="pm-button pm-button-full" type="submit">가입하기 <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="pm-form-footer">이미 계정이 있으신가요? <a href="{{ url_for('member.login') }}">로그인</a></p>
+  </section>
+</div>
+{% endblock %}

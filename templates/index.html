@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/member.css') }}">
+<div class="pm-page pm-home">
+  <section class="pm-hero" aria-labelledby="home-title">
+    <div class="pm-hero-copy">
+      <p class="pm-eyebrow">YOUR CHOICE, YOUR WAY</p>
+      <h1 id="home-title">선택이 어려운 순간,<br><span>생각을 함께 정리해요.</span></h1>
+      <p class="pm-lead">사소한 망설임부터 오래 품은 고민까지.<br>PickMe AI와 이야기하고, 나다운 답을 찾아보세요.</p>
+      <div class="pm-actions">
+        <a class="pm-button" href="{{ url_for('chat.index') }}">AI와 고민 나누기 <span aria-hidden="true">↗</span></a>
+        <a class="pm-button pm-button-secondary" href="{{ url_for('decision.index') }}">선택지 비교하기</a>
+      </div>
+      {% if current_user %}
+      <p class="pm-hero-note">{{ current_user.nickname }}님, 오늘은 어떤 고민이 있나요? <a href="{{ url_for('history.index') }}">내 고민 기록 보기 →</a></p>
+      {% else %}
+      <p class="pm-hero-note">나의 공간을 시작해보세요. <a href="{{ url_for('member.signup') }}">회원가입</a> · <a href="{{ url_for('member.login') }}">로그인</a></p>
+      {% endif %}
+    </div>
+    <div class="pm-choice-art" aria-hidden="true">
+      <div class="pm-orbit pm-orbit-one"></div><div class="pm-orbit pm-orbit-two"></div>
+      <div class="pm-art-label">마음속 복잡한 생각을</div>
+      <div class="pm-thought pm-thought-one">어떤 선택이 좋을까?</div>
+      <div class="pm-art-core">P<span>PickMe AI</span></div>
+      <div class="pm-thought pm-thought-two">하나씩, 나답게.</div>
+      <div class="pm-art-caption">고민에서 선택까지, 함께</div>
+    </div>
+  </section>
+
+  <section class="pm-features" aria-labelledby="features-title">
+    <div class="pm-section-heading"><div><p class="pm-eyebrow">A LITTLE CLARITY</p><h2 id="features-title">지금 나에게 필요한 도움</h2></div><p>고민을 꺼내는 것부터 시작해요.</p></div>
+    <div class="pm-feature-grid">
+      <a class="pm-feature" href="{{ url_for('chat.index') }}"><span class="pm-feature-icon" aria-hidden="true">01</span><span class="pm-feature-tag">생각을 꺼내고 싶을 때</span><h3>AI 상담</h3><p>막연한 고민을 대화로 풀어가며 내 마음과 생각을 정리해보세요.</p><span class="pm-feature-link">이야기 시작하기 <span aria-hidden="true">↗</span></span></a>
+      <a class="pm-feature" href="{{ url_for('decision.index') }}"><span class="pm-feature-icon" aria-hidden="true">02</span><span class="pm-feature-tag">선택 사이에서 망설일 때</span><h3>결정 도우미</h3><p>여러 선택지를 살펴보고 나에게 중요한 기준을 찾아보세요.</p><span class="pm-feature-link">선택지 살펴보기 <span aria-hidden="true">↗</span></span></a>
+      <a class="pm-feature" href="{{ url_for('history.index') }}"><span class="pm-feature-icon" aria-hidden="true">03</span><span class="pm-feature-tag">지난 생각이 궁금할 때</span><h3>고민 기록</h3><p>지나온 고민과 선택의 흐름을 돌아보는 나만의 공간이에요.</p><span class="pm-feature-link">기록 돌아보기 <span aria-hidden="true">↗</span></span></a>
+      <a class="pm-feature" href="{{ url_for('community.index') }}"><span class="pm-feature-icon" aria-hidden="true">04</span><span class="pm-feature-tag">다른 시선이 필요할 때</span><h3>커뮤니티</h3><p>다른 사람들의 고민을 만나고 다양한 관점을 나눠보세요.</p><span class="pm-feature-link">함께 이야기하기 <span aria-hidden="true">↗</span></span></a>
+    </div>
+  </section>
+  <div class="pm-bottom-note"><span class="pm-brand-dot" aria-hidden="true"></span>답을 고르는 주인공은 언제나 당신이에요. PickMe AI는 그 과정을 함께합니다.</div>
+</div>
+{% endblock %}

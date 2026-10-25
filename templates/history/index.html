@@ -1,0 +1,438 @@
+<!-- pickme-flask-main/templates/history/index.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+    
+    <!-- 1. 페이지 헤더 타이틀 영역 -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+            <div class="flex items-center gap-2 text-blue-700 text-xs font-semibold mb-1">
+                <i data-lucide="history" class="w-4 h-4"></i>
+                <span>나의 고민 회고 및 보관함</span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">고민 분석 기록</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-0.5">이전 고민과 선택지 비교 결과를 검색하고, 비슷한 고민을 불러와 손쉽게 수정해 보세요.</p>
+        </div>
+    </div>
+
+    <!-- 2. 안내 배너 -->
+    <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 flex items-start gap-2.5 text-xs text-slate-600">
+        <i data-lucide="info" class="w-4 h-4 text-blue-600 shrink-0 mt-0.5"></i>
+        <p class="leading-relaxed">
+            <strong>보안 안내:</strong> 분석 기록은 안전하게 서버에 보관됩니다. 비슷한 유형의 새로운 고민이 생기면 <strong>[이 기록 기반으로 수정]</strong>을 눌러 손쉽게 새 분석을 시작하세요.
+        </p>
+    </div>
+
+    <!-- 검색 및 필터 컨트롤 영역 -->
+    <div class="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <!-- 검색창 -->
+        <div class="flex-1 relative">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="searchInput" placeholder="고민 제목이나 내용 검색..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
+        </div>
+        <!-- 필터 옵션 -->
+        <div class="flex gap-2">
+            <select id="categoryFilter" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                <option value="전체">전체 카테고리</option>
+                <option value="음식/식사">음식/식사</option>
+                <option value="진로/직업">진로/직업</option>
+                <option value="연애/관계">연애/관계</option>
+                <option value="일상/생활">일상/생활</option>
+                <option value="학습/자기계발">학습/자기계발</option>
+                <option value="여행/여가">여행/여가</option>
+                <option value="기타">기타</option>
+            
+            </select>
+            <select id="sortFilter" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                <option value="latest">최신순</option>
+                <option value="oldest">오래된순</option>
+            </select>
+            <!-- 즐겨찾기 모아보기 토글 버튼 -->
+            <button id="bookmarkFilterBtn" class="flex items-center gap-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none">
+                <i data-lucide="star" class="w-4 h-4"></i>
+                <span class="whitespace-nowrap">즐겨찾기</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 리스트 영역 -->
+    <div id="history-list-container" class="hidden space-y-4">
+        <!-- 자바스크립트가 카드 생성 -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="flex flex-col items-center justify-center p-12 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+            <i data-lucide="scale" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-base font-semibold text-slate-900 mb-1">아직 작성된 고민 기록이 없습니다</h3>
+        <p class="text-sm text-slate-500 max-w-sm mb-6 leading-relaxed">어떤 결정을 내려야 할지 고민되는 순간이 있다면, 선택지 비교를 시작해 보세요!</p>
+        
+        <a href="{{ url_for('decision.index') }}" class="inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 whitespace-nowrap shrink-0 cursor-pointer select-none text-sm px-4 py-2 gap-2 h-10 bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 focus-visible:ring-blue-500 shadow-sm">
+            새로운 고민 시작하기
+        </a>
+    </div>
+
+</div>
+
+<!-- ==================== 상세 보기 모달 ==================== -->
+<div id="detailModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <!-- 모달 헤더 -->
+        <div class="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center rounded-t-2xl z-10">
+            <h2 id="modalTitle" class="text-xl font-bold text-slate-900">고민 상세</h2>
+            <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- 모달 본문 -->
+        <div class="p-6 space-y-5">
+            <div class="flex items-center gap-3 text-sm">
+                <span id="modalCategory" class="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-md"></span>
+                <span id="modalDate" class="text-slate-400"></span>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-semibold text-slate-500 mb-1">고민 내용</h3>
+                <p id="modalDilemma" class="text-slate-800 leading-relaxed whitespace-pre-wrap"></p>
+            </div>
+
+            <!-- AI 분석 결과 -->
+            <div id="modalResultSection" class="hidden">
+                <h3 class="text-sm font-semibold text-slate-500 mb-2">AI 분석 결과</h3>
+                <div id="modalResultContent" class="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 space-y-2"></div>
+            </div>
+
+            <!-- 회고 영역 -->
+            <div class="border-t border-slate-200 pt-5">
+                <h3 class="text-sm font-semibold text-slate-500 mb-3">나의 회고</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">실제로 선택한 것</label>
+                        <input type="text" id="actualChoiceInput" 
+                               class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="실제로 어떤 선택을 했나요?">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">만족도 (1~5점)</label>
+                        <select id="satisfactionSelect" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">선택 안 함</option>
+                            <option value="1">1점 - 매우 불만족</option>
+                            <option value="2">2점 - 불만족</option>
+                            <option value="3">3점 - 보통</option>
+                            <option value="4">4점 - 만족</option>
+                            <option value="5">5점 - 매우 만족</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">회고 노트</label>
+                        <textarea id="retrospectiveNote" rows="3"
+                                  class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="이 결정에 대해 느낀 점이나 배운 점을 적어보세요."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 모달 푸터 -->
+        <div class="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex justify-between gap-3 rounded-b-2xl">
+            <button onclick="deleteCurrentHistory()" 
+                    class="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                삭제
+            </button>
+            <div class="flex gap-2">
+                <button onclick="closeDetailModal()" 
+                        class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    닫기
+                </button>
+                <button onclick="saveRetrospective()" 
+                        class="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    회고 저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 공통 하단 푸터 영역 -->
+<footer class="border-t border-slate-200 bg-white mt-auto py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 text-xs text-slate-500">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="text-blue-600 font-bold">🛡️</span>
+                <span>안내: PickMe AI의 분석 및 추천은 합리적 판단을 돕기 위한 <strong>참고용</strong>이며, 모든 최종 결정권과 책임은 사용자 본인에게 있습니다.</span>
+            </div>
+            <div class="shrink-0 text-slate-400">
+                &copy; 2026 PickMe AI. All rights reserved.
+            </div>
+        </div>
+        <div class="pt-4 border-t border-slate-100 text-center text-slate-400 text-[11px]">
+            This app was developed by another user. It may be inaccurate or unsafe. <span class="text-blue-600 cursor-pointer hover:underline">Report legal issue</span>
+        </div>
+    </div>
+</footer>
+
+<script>
+    lucide.createIcons();
+
+    // 필터 상태
+    const currentFilters = {
+        q: '',
+        category: '전체',
+        sort: 'latest',
+        bookmarked: false
+    };
+
+    // 현재 상세 보기 중인 ID
+    let currentDetailId = null;
+
+    // ==================== 목록 불러오기 ====================
+    function loadHistories() {
+        const params = new URLSearchParams({
+            q: currentFilters.q,
+            category: currentFilters.category,
+            sort: currentFilters.sort,
+            bookmarked: currentFilters.bookmarked
+        });
+
+        fetch(`/history/api/list?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                const emptyState = document.getElementById('empty-state');
+                const listContainer = document.getElementById('history-list-container');
+                
+                listContainer.innerHTML = '';
+
+                if (data && data.length > 0) {
+                    emptyState.classList.add('hidden');
+                    emptyState.classList.remove('flex');
+                    listContainer.classList.remove('hidden');
+
+                    data.forEach(item => {
+                        const card = document.createElement('div');
+                        card.className = "p-5 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer relative";
+                        
+                        const starClass = item.is_bookmarked 
+                            ? 'text-yellow-400 fill-yellow-400' 
+                            : 'text-slate-300 hover:text-yellow-400';
+
+                        card.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-700 text-[11px] font-bold rounded-md">${item.category || '일반'}</span>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-xs text-slate-400">${item.created_at}</span>
+                                    <button onclick="toggleBookmark(${item.id}, event, this)" class="focus:outline-none transition-colors" title="즐겨찾기">
+                                        <i data-lucide="star" class="w-5 h-5 ${starClass}"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-900 mb-1 line-clamp-1">${item.title}</h2>
+                            <p class="text-sm text-slate-500 line-clamp-2">${item.dilemma || ''}</p>
+                        `;
+
+                        // 카드 클릭 → 상세 모달
+                        card.addEventListener('click', () => {
+                            openDetailModal(item);
+                        });
+
+                        listContainer.appendChild(card);
+                    });
+                    lucide.createIcons();
+                } else {
+                    emptyState.classList.remove('hidden');
+                    emptyState.classList.add('flex');
+                    listContainer.classList.add('hidden');
+                }
+            })
+            .catch(error => console.error('기록을 불러오는 중 오류 발생:', error));
+    }
+
+    // ==================== 즐겨찾기 ====================
+    function toggleBookmark(decisionId, event, btnElement) {
+        event.stopPropagation();
+
+        fetch(`/history/api/${decisionId}/bookmark`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const svg = btnElement.querySelector('svg');
+                    if (svg) {
+                        if (data.is_bookmarked) {
+                            svg.classList.add('text-yellow-400', 'fill-yellow-400');
+                            svg.classList.remove('text-slate-300');
+                        } else {
+                            svg.classList.remove('text-yellow-400', 'fill-yellow-400');
+                            svg.classList.add('text-slate-300');
+                        }
+                    }
+                    
+                    if (currentFilters.bookmarked && !data.is_bookmarked) {
+                        loadHistories();
+                    }
+                }
+            })
+            .catch(error => console.error('즐겨찾기 변경 오류:', error));
+    }
+
+    // ==================== 상세 모달 ====================
+    function openDetailModal(item) {
+        currentDetailId = item.id;
+
+        document.getElementById('modalTitle').textContent = item.title || '제목 없음';
+        document.getElementById('modalCategory').textContent = item.category || '일반';
+        document.getElementById('modalDate').textContent = item.created_at || '';
+        document.getElementById('modalDilemma').textContent = item.dilemma || '';
+
+        // 회고 데이터
+        document.getElementById('actualChoiceInput').value = item.actual_choice || '';
+        document.getElementById('satisfactionSelect').value = item.satisfaction_score || '';
+        document.getElementById('retrospectiveNote').value = item.retrospective_note || '';
+
+        // AI 결과
+        const resultSection = document.getElementById('modalResultSection');
+        const resultContent = document.getElementById('modalResultContent');
+        
+        if (item.options_data || item.recommendation_data) {
+            resultSection.classList.remove('hidden');
+            let html = '';
+            
+            if (item.recommendation_data) {
+                html += `<p><strong>AI 추천:</strong> ${item.recommendation_data}</p>`;
+            }
+            if (item.options_data && Array.isArray(item.options_data) && item.options_data.length > 0) {
+                html += `<p class="mt-2"><strong>선택지:</strong></p><ul class="list-disc list-inside space-y-1">`;
+                item.options_data.forEach(opt => {
+                    const text = typeof opt === 'string' ? opt : (opt.name || JSON.stringify(opt));
+                    html += `<li>${text}</li>`;
+                });
+                html += `</ul>`;
+            }
+            resultContent.innerHTML = html || '<p class="text-slate-400">분석 결과 없음</p>';
+        } else {
+            resultSection.classList.add('hidden');
+        }
+
+        const modal = document.getElementById('detailModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        lucide.createIcons();
+    }
+
+    function closeDetailModal() {
+        const modal = document.getElementById('detailModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        currentDetailId = null;
+    }
+
+    // ==================== 회고 저장 ====================
+    function saveRetrospective() {
+        if (!currentDetailId) return;
+
+        const data = {
+            actualChoice: document.getElementById('actualChoiceInput').value.trim(),
+            satisfactionScore: document.getElementById('satisfactionSelect').value,
+            retrospectiveNote: document.getElementById('retrospectiveNote').value.trim()
+        };
+
+        fetch(`/history/api/${currentDetailId}/retrospective`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.success) {
+                alert('회고가 저장되었습니다!');
+                closeDetailModal();
+                loadHistories();
+            } else {
+                alert('저장에 실패했습니다.');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('저장 중 오류가 발생했습니다.');
+        });
+    }
+
+    // ==================== 삭제 ====================
+    function deleteCurrentHistory() {
+        if (!currentDetailId) return;
+        if (!confirm('이 기록을 정말 삭제하시겠습니까?')) return;
+
+        fetch(`/history/api/${currentDetailId}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success) {
+                    closeDetailModal();
+                    loadHistories();
+                } else {
+                    alert('삭제에 실패했습니다.');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('삭제 중 오류가 발생했습니다.');
+            });
+    }
+
+    // ==================== 이벤트 리스너 ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        // 초기 로드
+        loadHistories();
+
+        // 검색 (디바운스)
+        const searchInput = document.getElementById('searchInput');
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            currentFilters.q = e.target.value.trim();
+            searchTimeout = setTimeout(loadHistories, 300);
+        });
+
+        // 카테고리
+        document.getElementById('categoryFilter').addEventListener('change', (e) => {
+            currentFilters.category = e.target.value;
+            loadHistories();
+        });
+
+        // 정렬
+        document.getElementById('sortFilter').addEventListener('change', (e) => {
+            currentFilters.sort = e.target.value;
+            loadHistories();
+        });
+
+        // 즐겨찾기 모아보기 토글
+        const bookmarkBtn = document.getElementById('bookmarkFilterBtn');
+        bookmarkBtn.addEventListener('click', () => {
+            currentFilters.bookmarked = !currentFilters.bookmarked;
+            
+            if (currentFilters.bookmarked) {
+                bookmarkBtn.classList.add('bg-blue-50', 'text-blue-600', 'border-blue-200');
+                bookmarkBtn.classList.remove('bg-slate-50', 'text-slate-600');
+                const icon = bookmarkBtn.querySelector('svg');
+                if (icon) icon.classList.add('fill-blue-600');
+            } else {
+                bookmarkBtn.classList.remove('bg-blue-50', 'text-blue-600', 'border-blue-200');
+                bookmarkBtn.classList.add('bg-slate-50', 'text-slate-600');
+                const icon = bookmarkBtn.querySelector('svg');
+                if (icon) icon.classList.remove('fill-blue-600');
+            }
+            loadHistories();
+        });
+
+        // ESC 키로 모달 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeDetailModal();
+        });
+    });
+</script>
+{% endblock %}

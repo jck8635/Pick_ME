@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/decision.css') }}">
+
+<div class="container mt-4">
+    <h2>3. 판단 기준 및 중요도 가중치 (3/5)</h2>
+    <p class="text-muted">어떤 요소를 중요하게 생각하는지 선택하고, 숫자(1~5)로 중요도를 매겨주세요.</p>
+
+    <p><b>선택지 미리보기:</b>
+        {% for opt in options %}<span class="chip">{{ opt.title }}</span> {% endfor %}
+        {% if not options %}<span class="hint">선택지가 없어요. 2단계에서 입력하면 더 정확한 비교가 가능해요.</span>{% endif %}
+    </p>
+
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+
+    <form method="POST" action="{{ url_for('decision.conditions_submit') }}" class="panel" id="criteria-form">
+        {# 1~2단계 값 유지: 3단계 제출 때 같이 넘겨야 AI 상담에 반영됨 #}
+        {% for cat in form.get('categories', []) %}
+            <input type="hidden" name="categories" value="{{ cat }}">
+        {% endfor %}
+        <input type="hidden" name="style" value="{{ form.get('style', 'objective') }}">
+        <input type="hidden" name="title" value="{{ form.get('title', '') }}">
+        <input type="hidden" name="content" value="{{ form.get('content', '') }}">
+        {% for c in form.get('conditions', []) %}
+            <input type="hidden" name="conditions" value="{{ c }}">
+        {% endfor %}
+        <input type="hidden" name="conditions_free" value="{{ form.get('conditions_free', '') }}">
+        {% for t in form.get('option_title', []) %}
+            <input type="hidden" name="option_title" value="{{ t }}">
+        {% endfor %}
+        {% for n in form.get('option_note', []) %}
+            <input type="hidden" name="option_note" value="{{ n }}">
+        {% endfor %}
+
+        <div class="chip-group">
+            <label class="chip"><input type="checkbox" name="criteria" value="비용 (지불 및 총괄비용)"> 비용 (지불 및 총괄비용)</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="소요 시간 및 편의성"> 소요 시간 및 편의성</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="개인적 만족도 및 행복"> 개인적 만족도 및 행복</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="성장 가능성 및 기회"> 성장 가능성 및 기회</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="안정성 및 리스크 관리"> 안정성 및 리스크 관리</label>
+        </div>
+
+        {# 기준을 체크하면 아래에 그 기준의 가중치(1~5) 선택줄이 나타남 #}
+        <div id="weight-box"></div>
+
+        <button type="submit" class="btn btn-primary mt-3">AI 상담 받으러 가기</button>
+    </form>
+</div>
+
+<script>
+// 기준 체크박스 → 가중치(1~5) 라디오 줄 자동 생성/삭제
+const ID_KEYS = {
+    "비용 (지불 및 총괄비용)": "cost",
+    "소요 시간 및 편의성": "time",
+    "개인적 만족도 및 행복": "satis",
+    "성장 가능성 및 기회": "grow",
+    "안정성 및 리스크 관리": "safe",
+};
+const box = document.getElementById('weight-box');
+
+document.querySelectorAll('input[name="criteria"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+        const key = ID_KEYS[cb.value];
+        let row = document.getElementById('weight-row-' + key);
+        if (cb.checked && !row) {
+            row = document.createElement('div');
+            row.className = 'criteria-row';
+            row.id = 'weight-row-' + key;
+            row.innerHTML = '<span>' + cb.value + '</span>' +
+                [1,2,3,4,5].map(n =>
+                    '<label class="weight-label"><input type="radio" name="wtmp_' + key + '" data-crit="' + cb.value + '" value="' + n + '"> ' + n + '</label>'
+                ).join('');
+            box.appendChild(row);
+        } else if (!cb.checked && row) {
+            row.remove();
+        }
+    });
+});
+
+// 페이지가 열리자마자 기준 5개를 모두 펼쳐서 가중치 버튼이 바로 보이게 한다
+// (필요 없는 기준은 체크박스를 다시 눌러서 접으면 된다)
+document.querySelectorAll('input[name="criteria"]').forEach(cb => {
+    cb.checked = true;
+    cb.dispatchEvent(new Event('change'));
+});
+
+// 제출 전: 각 기준의 가중치를 골랐는지 확인하고, name을 "weight_기준명"으로 정리해 서버로 보냄
+document.getElementById('criteria-form').addEventListener('submit', e => {
+    e.preventDefault();
+    let ok = true;
+    document.querySelectorAll('#weight-box .criteria-row').forEach(row => {
+        const first = row.querySelector('input[type=radio]');
+        const crit = first.dataset.crit;
+        const checked = row.querySelector('input[type=radio]:checked');
+        if (!checked) { ok = false; row.classList.add('weight-missing'); }
+        row.querySelectorAll('input[type=radio]').forEach(r => {
+            r.name = 'weight_' + crit;
+        });
+    });
+    if (!ok) {
+        alert('선택한 기준마다 중요도(1~5)를 골라주세요.');
+        return;
+    }
+    e.target.submit();
+});
+</script>
+
+<!-- AI 상담 결과 (3단계 제출 후 표시) -->
+{% if result %}
+<div class="card mt-4">
+    <div class="card-header bg-success text-white"><strong>🤖 AI 상담 결과 (가중치 반영)</strong></div>
+    <div class="card-body">
+        <p style="white-space: pre-line;">{{ result }}</p>
+        <a href="{{ url_for('decision.index') }}" class="btn-restyle">처음으로 돌아가기</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

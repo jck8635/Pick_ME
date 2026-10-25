@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/decision.css') }}">
+
+<div class="container mt-4">
+    <h2>결정 도우미 (AI 상담)</h2>
+    <p class="text-muted">지금 어떤 고민이 있으신가요? AI가 현명한 결정을 도와드립니다.</p>
+    {% if from_chat %}
+    <div class="alert" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:12px;padding:12px 16px;margin-bottom:16px;">
+        AI 상담에서 정리한 선택지를 미리 채워 두었어요. 제목·선택지를 확인한 뒤, 판단 기준과 중요도만 골라 주시면 됩니다.
+    </div>
+    {% endif %}
+
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+
+    <!-- 고민 입력 폼 -->
+    <form method="POST" class="panel" id="decision-form">
+        <h2 class="step-title">📋 1. 고민 개요 및 설정</h2>
+        <p class="text-muted">고민 상황과 원하는 상담 스타일을 알려주세요.</p>
+
+        <!-- 개선 1: 고민 카테고리 복수 선택 -->
+        <fieldset class="mb-3">
+            <legend>🏷️ 고민 카테고리 <small>(여러 개 선택 가능)</small></legend>
+            <div class="chip-group">
+                {% for cat in categories %}
+                <label class="chip"><input type="checkbox" name="categories" value="{{ cat }}"
+                    {% if cat in form.getlist('categories') %}checked{% endif %}>{{ cat }}</label>
+                {% endfor %}
+            </div>
+        </fieldset>
+
+        <!-- 개선 2: AI 조언 스타일 (상담 중 변경 가능) -->
+        <fieldset class="mb-3">
+            <legend>✨ AI 조언 스타일</legend>
+            <div class="chip-group">
+                {% set sel_style = form.get('style', 'objective') %}
+                <label class="chip"><input type="radio" name="style" value="soft" {% if sel_style=='soft' %}checked{% endif %}> 부드러운 공감형</label>
+                <label class="chip"><input type="radio" name="style" value="objective" {% if sel_style=='objective' %}checked{% endif %}> 객관적인 분석형</label>
+                <label class="chip"><input type="radio" name="style" value="fact" {% if sel_style=='fact' %}checked{% endif %}> 냉정한 팩트형</label>
+            </div>
+            <p class="hint">예: 상담 후 "공감은 됐고, 이제 팩트로 말해줘" 처럼 스타일을 바꿔 다시 물어볼 수 있어요.</p>
+        </fieldset>
+
+        <!-- 개선 3: 자유로운 고민 제목 -->
+        <div class="mb-3">
+            <label for="title">고민 제목 (자유롭게 적어주세요)</label>
+            <input type="text" id="title" name="title" value="{{ form.get('title', '') }}"
+                placeholder="예: 지금 이직을 준비해야 할까요?">
+        </div>
+
+        <!-- 개선 4: 고민 작성 가이드 (육하원칙 대신 핵심 4개) -->
+        <div class="mb-3">
+            <label for="content">고민 내용 <b class="req">*</b></label>
+            <div class="guide-box">
+                <b>이렇게 적어주면 더 정확한 상담이 가능해요 (핵심 4가지)</b>
+                <ul>
+                    <li>어떤 상황인지 <small>(예: 직장에서 상사와 갈등이 있음)</small></li>
+                    <li>누구와 관련된 일인지 <small>(예: 상사, 친구, 가족 등)</small></li>
+                    <li>무엇을 고민하고 있는지 <small>(예: 이직 vs 버티기)</small></li>
+                    <li>왜 고민되는지 <small>(예: 연봉은 괜찮은데 스트레스가 커서)</small></li>
+                </ul>
+            </div>
+            <textarea id="content" name="content" rows="6" required
+                placeholder="예: 현재 직장에서 상사와 갈등이 있어요. 이직을 준비할까 말까 고민인데, 떠나기엔 연봉이 괜찮고 남기엔 스트레스가 커요.">{{ form.get('content', '') }}</textarea>
+        </div>
+
+        <!-- 개선 5: 추가 조건 칩 UI + 자유 입력 -->
+        <fieldset class="mb-3">
+            <legend>➕ 추가 조건 및 특별한 상황 <small>(선택)</small></legend>
+            <div class="chip-group">
+                {% for chip in chips %}
+                <label class="chip"><input type="checkbox" name="conditions" value="{{ chip }}"
+                    {% if chip in form.getlist('conditions') %}checked{% endif %}>{{ chip }}</label>
+                {% endfor %}
+            </div>
+            <input type="text" name="conditions_free" value="{{ form.get('conditions_free', '') }}"
+                placeholder="직접 입력: 예산은 15,000원 이내 등" class="mt-2">
+        </fieldset>
+
+        <!-- 제출 버튼은 3단계 아래에 있음 (form="decision-form"으로 연결됨) -->
+    </form>
+
+    <!-- ★ 2단계: 비교할 선택지 작성 (같은 페이지 안) -->
+    <form method="POST" action="{{ url_for('decision.index') }}" class="panel mt-3" id="options-form">
+        <h2 class="step-title">✅ 2. 비교할 선택지 작성 (선택)</h2>
+        <p class="text-muted">최소 2개에서 최대 5개까지의 대안을 입력하세요. 비어 있어도 상담은 가능해요.</p>
+        <div id="option-list">
+            {% set opts = prefill_options if prefill_options is defined and prefill_options else [{"title": "", "note": ""}, {"title": "", "note": ""}] %}
+            {% for opt in opts %}
+            <div class="option-card">
+                <span class="badge">선택지 {{ loop.index }}</span>
+                <div class="row">
+                    <div>
+                        <label>선택지 이름</label>
+                        <input type="text" name="option_title" value="{{ opt.title }}"
+                            placeholder="{{ '예: 짬뽕' if loop.index == 1 else '예: 짜장면' }}">
+                    </div>
+                    <div>
+                        <label>간단한 설명 및 특징 (선택)</label>
+                        <input type="text" name="option_note" value="{{ opt.note }}"
+                            placeholder="{{ '예: 얼큰한 국물, 맵기 조절 가능' if loop.index == 1 else '예: 고소하고 든든한 한 그릇' }}">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="btn-restyle" id="add-option">+ 선택지 추가</button>
+    </form>
+
+    <!-- ★ 3단계: 판단 기준 + 중요도 가중치 (1,2단계와 같은 패널 스타일) -->
+    <div class="panel mt-3">
+        <h2 class="step-title">⚖️ 3. 판단 기준 및 중요도 가중치</h2>
+        <p class="text-muted">아래 칩을 눌러 판단에 필요한 기준을 추가하고, 중요도를 선택하세요.</p>
+
+        <div class="chip-group" id="criteria-chips">
+            <label class="chip"><input type="checkbox" name="criteria" value="비용 (예산)"> 비용 (예산)</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="시간 효율"> 시간 효율</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="개인 만족도"> 개인 만족도</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="성장 가능성 및 기회"> 성장 가능성 및 기회</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="안정성"> 안정성</label>
+            <label class="chip"><input type="checkbox" name="criteria" value="주변 사람들의 만족"> 주변 사람들의 만족</label>
+        </div>
+
+        {# 기준을 누르면 아래에 중요도(1~5) 선택줄이 생김 #}
+        <div id="weight-box" class="mt-3"></div>
+
+        <div class="add-criteria-row mt-3">
+            <input type="text" id="new-criteria" placeholder="세부 기준 직접 추가  예: 수납함, 촬영의 느낌 등">
+            <button type="button" class="btn-restyle" id="add-criteria">기준 추가</button>
+        </div>
+    </div>
+
+    <!-- ★ 3단계 아래 가운데 정렬된 최종 제출 버튼 -->
+    <div class="text-center mt-4">
+        <button type="submit" 
+            form="decision-form" 
+            class="btn btn-primary" 
+            id="submit-btn"
+            style="border-radius: 12px !important; 
+                   border: 2px solid #0d6efd; 
+                   padding: 14px 32px; 
+                   font-weight: 600;">
+        🤖 AI 상담하러 바로 갈 준비 시작
+        </button>
+        <span id="loading" style="display:none;" class="loading-text">
+            ⏳ AI가 고민을 분석하고 있어요... (10~20초 정도 걸려요)
+        </span>
+    </div>
+
+    <!-- AI 답변 출력 영역 -->
+    {% if result %}
+    <div class="card mt-4">
+        <div class="card-header bg-success text-white"><strong>🤖 AI 상담 결과</strong></div>
+        <div class="card-body">
+            <p style="white-space: pre-line;">{{ result }}</p>
+            <!-- 개선 2: 결과에서 스타일만 바꿔 다시 상담 -->
+            <div class="restyle-box">
+                <b>다른 스타일로 다시 듣기:</b>
+                <button type="button" class="btn-restyle" data-style="soft">부드럽게 공감받기</button>
+                <button type="button" class="btn-restyle" data-style="objective">객관적으로 분석받기</button>
+                <button type="button" class="btn-restyle" data-style="fact">팩트로 말하기</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+
+// 스타일 변경 재상담
+document.querySelectorAll('.btn-restyle').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const form = document.querySelector('form.panel');
+        const body = {
+            style: btn.dataset.style,
+            categories: [...form.querySelectorAll('input[name="categories"]:checked')].map(i => i.value),
+            title: form.title.value,
+            content: form.content.value,
+            conditions: [...form.querySelectorAll('input[name="conditions"]:checked')].map(i => i.value)
+                .concat(form.conditions_free.value.trim() ? [form.conditions_free.value.trim()] : []).join(', ')
+        };
+        btn.disabled = true;
+        fetch('{{ url_for("decision.api_restyle") }}', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+        })
+        .then(r => r.json())
+        .then(d => {
+            const p = document.querySelector('.card-body p');
+            if (p) { p.textContent = d.result || d.error; }
+            // 스타일 바꿔 재상담한 경우 어떤 스타일로 답했는지 표시 → ★분위기 바뀐 거 눈에 보이게
+            const header = document.querySelector('.card-header');
+            const styleNames = { soft: '💕 부드러운 공감형', objective: '📊 객관적인 분석형', fact: '🧊 냉정한 팩트형' };
+            if (header && d.result) header.textContent = '🤖 AI 상담 결과 — ' + (styleNames[btn.dataset.style] || '');
+            btn.disabled = false;
+        })
+        .catch(() => { btn.disabled = false; });
+    });
+});
+
+// ★ 상담 요청 대기 중 로딩 표시 + 버튼 중복 클릭 방지
+document.getElementById('decision-form').addEventListener('submit', () => {
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('loading').style.display = 'inline';
+});
+
+// ★ "+ 선택지 추가" → 최대 5개
+let optCount = document.querySelectorAll('.option-card').length;
+document.getElementById('add-option').addEventListener('click', () => {
+    if (optCount >= 5) { alert('최대 5개까지 가능해요.'); return; }
+    optCount++;
+    const card = document.querySelector('.option-card').cloneNode(true);
+    card.querySelector('.badge').textContent = '선택지 ' + optCount;
+    card.querySelectorAll('input').forEach(i => i.value = '');
+    document.getElementById('option-list').appendChild(card);
+});
+
+// ★ 기준 체크/추가 → 중요도(1~5) 선택줄 자동 생성/삭제
+const wbox = document.getElementById('weight-box');
+
+// 기준 한 줄 만들기 (그림처럼: 기준명 · 중요도 1~5 · 보류)
+function makeWeightRow(crit) {
+    const row = document.createElement('div');
+    row.className = 'criteria-row';
+    row.innerHTML = '<span> ' + crit + ' 🗑️</span>' +
+        '<span class="imp-label">중요도:</span>' +
+        [1,2,3,4,5].map(n =>
+            '<label class="weight-label"><input type="radio" name="weight_' + crit + '" value="' + n + '"' + (n === 5 ? ' checked' : '') + '> ' + n + '</label>'
+        ).join('') +
+        ' <label class="weight-label hold"><input type="radio" name="weight_' + crit + '" value="보류"> 보류</label>';
+    row.querySelector('span').addEventListener('click', () => row.remove()); // 이름 누르면 삭제
+    return row;
+}
+
+// 칩(체크박스) 누르면 → 줄 추가/삭제
+document.querySelectorAll('input[name="criteria"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+        const rowId = 'weight-row-' + cb.value;
+        let row = document.getElementById(rowId);
+        if (cb.checked && !row) {
+            row = makeWeightRow(cb.value);
+            row.id = rowId;
+            wbox.appendChild(row);
+        } else if (!cb.checked && row) {
+            row.remove();
+        }
+    });
+});
+
+// "기준 추가" 버튼 → 직접 입력한 기준의 줄 추가 (칩에도 자동 체크 표시)
+document.getElementById('add-criteria').addEventListener('click', () => {
+    const input = document.getElementById('new-criteria');
+    const crit = input.value.trim();
+    if (!crit) { alert('기준 이름을 입력해주세요.'); return; }
+    if (document.getElementById('weight-row-' + crit)) { alert('이미 추가된 기준이에요.'); return; }
+    wbox.appendChild(makeWeightRow(crit));
+    // 나중에 제출 때 기준명도 같이 보내야 하므로 숨은 체크박스로 남겨둠
+    const h = document.createElement('input');
+    h.type = 'hidden'; h.name = 'criteria'; h.value = crit;
+    document.getElementById('criteria-chips').appendChild(h);
+    input.value = '';
+});
+
+// ★ 1단계 폼 제출 시 2단계(선택지)·3단계(판단기준) 값을 같이 넘겨주기
+document.getElementById('decision-form').addEventListener('submit', e => {
+    // 선택지 입력들을 1단계 폼에 숨은 입력으로 복사
+    document.querySelectorAll('#options-form .option-card').forEach(card => {
+        const t = card.querySelector('input[name="option_title"]').value;
+        const n = card.querySelector('input[name="option_note"]').value;
+        if (t.trim()) {
+            const h1 = document.createElement('input'); h1.type = 'hidden'; h1.name = 'option_title'; h1.value = t;
+            const h2 = document.createElement('input'); h2.type = 'hidden'; h2.name = 'option_note'; h2.value = n;
+            e.target.appendChild(h1); e.target.appendChild(h2);
+        }
+    });
+    // 판단 기준 체크 + 선택된 가중치 점수 모두 복사해서 폼에 담기
+document.querySelectorAll('#weight-box .criteria-row').forEach(row => {
+    const crit = row.querySelector('span').textContent.replace('🗑️', '').trim();
+    
+    // 1. 기준 이름 복사
+    const h = document.createElement('input'); 
+    h.type = 'hidden'; 
+    h.name = 'criteria'; 
+    h.value = crit;
+    e.target.appendChild(h);
+
+    // 2. 선택된 가중치 점수(라디오 버튼)도 강제로 찾아내서 폼에 복사 (추가된 부분)
+    const checkedRadio = row.querySelector('input[type="radio"]:checked');
+    if (checkedRadio) {
+        const wh = document.createElement('input');
+        wh.type = 'hidden';
+        wh.name = 'weight_' + crit;
+        wh.value = checkedRadio.value;
+        e.target.appendChild(wh);
+    }
+});
+});
+</script>
+{% endblock %}

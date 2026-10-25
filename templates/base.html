@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PickMe AI Flask</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- ★ Tailwind CSS CDN을 여기에 추가해 주세요! ★ -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <a class="brand" href="{{ url_for('main.index') }}">PickMe AI</a>
+            <a href="{{ url_for('chat.index') }}">AI 상담</a>
+            <a href="{{ url_for('decision.index') }}">결정 도우미</a>
+            <a href="{{ url_for('history.index') }}">고민 기록</a>
+            <a href="{{ url_for('community.index') }}">커뮤니티</a>
+            {% if current_user %}
+                <a href="{{ url_for('member.mypage') }}">마이페이지</a>
+                <form action="{{ url_for('member.logout') }}" method="post"><button>로그아웃</button></form>
+            {% else %}
+                <a href="{{ url_for('member.login') }}">로그인</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main>
+        {% for m in get_flashed_messages() %}
+            <div class="alert">{{ m }}</div>
+        {% endfor %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
